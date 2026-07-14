@@ -8,23 +8,25 @@ const connectDb = require('./db');
 
 const app = express();
 
-// Разрешаем запросы со всех локальных адресов для разработки
+// Разрешаем запросы отовсюду (для разработки и GitHub Pages)
 app.use(cors({
   origin: '*',
   credentials: true
 }));
 
 app.use(express.json({ limit: '1mb' }));
-app.use('/api/messages', require('./routes/messages'));
+
+// Подключаем все роуты
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./middleware/auth'), require('./routes/profile'));
-app.use('/api/admin', require('./routes/admin'));
 app.use('/api/users', require('./routes/users'));
-
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/messages', require('./routes/messages'));
+app.use('/api/chats', require('./routes/chats')); // <-- НОВЫЙ РОУТ
 
 const server = http.createServer(app);
 
-// Socket.io — разрешаем все локальные адреса
+// Настройка Socket.io
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -33,6 +35,7 @@ const io = new Server(server, {
   }
 });
 
+// Инициализация сокетов
 require('./sockets')(io);
 
 (async () => {

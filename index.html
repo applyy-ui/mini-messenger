@@ -3,28 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <title>MiniMessenger</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
-  /* ===== Базовые стили ===== */
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
-  body { background: #e7ebf0; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  body { background: #e7ebf0; height: 100vh; overflow: hidden; }
   button { cursor: pointer; border: none; background: none; font: inherit; }
   input { font: inherit; outline: none; }
 
-  /* ===== ТЁМНАЯ ТЕМА ===== */
+  /* ТЁМНАЯ ТЕМА */
   body.dark { background: #0f1419; }
-  body.dark .auth-screen { background: #15202b; color: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+  body.dark .auth-screen { background: #15202b; color: #fff; }
   body.dark .auth-screen input { background: #22303c; border-color: #38444d; color: #fff; }
   body.dark .auth-screen input:focus { border-color: #1d9bf0; }
   body.dark .auth-screen button.primary { background: #1d9bf0; }
-  body.dark .auth-screen button.primary:hover { background: #1a8cd8; }
   body.dark .app { background: #15202b; }
   body.dark .sidebar { background: #15202b; border-right-color: #38444d; }
   body.dark .sidebar-header { border-bottom-color: #38444d; }
   body.dark .icon-btn { color: #8899a6; }
   body.dark .icon-btn:hover { background: #1e2732; }
-  body.dark .chat-list { background: #15202b; }
   body.dark .chat-item:hover { background: #1e2732; }
   body.dark .chat-item.active { background: #1d9bf0; color: #fff; }
   body.dark .chat-item.active .chat-preview,
@@ -44,19 +41,20 @@
   body.dark .input-area input { background: #22303c; border-color: #38444d; color: #fff; }
   body.dark .input-area input:focus { background: #2a3441; border-color: #1d9bf0; }
   body.dark .send-btn { background: #1d9bf0; color: #fff; }
-  body.dark .send-btn:hover { background: #1a8cd8; }
   body.dark .modal { background: #15202b; color: #fff; }
   body.dark .modal input { background: #22303c; border-color: #38444d; color: #fff; }
   body.dark .modal .btn-primary { background: #1d9bf0; color: #fff; }
   body.dark .modal .btn-secondary { background: #22303c; color: #fff; }
   body.dark .modal .btn-secondary:hover { background: #2a3441; }
   body.dark .empty-chat { color: #8899a6; }
-  body.dark .theme-toggle { color: #fff; }
+  body.dark .search-friends { border-bottom-color: #38444d; }
+  body.dark .search-friends input { background: #22303c; border-color: #38444d; color: #fff; }
 
-  /* ===== Экран авторизации ===== */
+  /* Экран авторизации */
   .auth-screen {
     background: #fff; width: 360px; padding: 32px; border-radius: 12px;
     box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   }
   .auth-screen h1 { font-size: 22px; margin-bottom: 20px; color: #2AABEE; text-align: center; }
   .auth-screen input {
@@ -73,14 +71,15 @@
   .auth-screen .switch a { color: #2AABEE; cursor: pointer; }
   .auth-error { color: #e53935; font-size: 13px; margin-bottom: 10px; min-height: 18px; }
 
-  /* ===== Главный экран ===== */
-  .app { display: none; width: 100%; height: 100vh; background: #fff; }
+  /* Главный экран */
+  .app { display: none; width: 100%; height: 100vh; background: #fff; position: relative; }
   .app.active { display: flex; }
 
-  /* Сайдбар с чатами */
+  /* Сайдбар */
   .sidebar {
     width: 340px; border-right: 1px solid #e7ebf0;
     display: flex; flex-direction: column; background: #fff;
+    height: 100%; position: relative; z-index: 10;
   }
   .sidebar-header {
     height: 56px; padding: 0 16px; display: flex; align-items: center;
@@ -124,7 +123,7 @@
   /* Область чата */
   .chat-area {
     flex: 1; display: flex; flex-direction: column;
-    background: #e7ebf0;
+    background: #e7ebf0; height: 100%;
   }
   .chat-header {
     height: 56px; padding: 0 20px; background: #fff;
@@ -171,7 +170,7 @@
     color: #707579; font-size: 15px;
   }
 
-  /* ===== Модальные окна ===== */
+  /* Модальные окна */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,.4); z-index: 100;
@@ -212,7 +211,6 @@
   .modal .btn-danger { background: #fff; color: #e53935; border: 1px solid #e53935; }
   .modal .btn-danger:hover { background: #fdecea; }
   
-  /* Поиск друзей */
   .search-friends {
     padding: 12px 16px; border-bottom: 1px solid #e7ebf0;
   }
@@ -222,27 +220,33 @@
   }
   .search-friends input:focus { border-color: #2AABEE; background: #fff; }
 
-
-    /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
+  /* МОБИЛЬНАЯ АДАПТАЦИЯ */
   @media (max-width: 768px) {
+    .auth-screen { width: 90%; max-width: 360px; }
+    
     .app.active { position: relative; }
     .sidebar { 
       position: absolute; width: 100%; height: 100%; z-index: 20; 
-      transform: translateX(0); transition: transform 0.3s ease;
+      transition: transform 0.3s ease;
     }
     .sidebar.hidden { transform: translateX(-100%); }
-    .chat-area { width: 100%; position: absolute; inset: 0; z-index: 10; background: #e7ebf0; }
+    
+    .chat-area { 
+      width: 100%; position: absolute; inset: 0; z-index: 10; 
+      background: #e7ebf0;
+    }
     body.dark .chat-area { background: #0f1419; }
     
-    /* Кнопка "Назад" для мобильных */
     .mobile-back-btn { display: flex !important; }
+    .message { max-width: 80%; }
   }
+  
   .mobile-back-btn { display: none; }
 </style>
 </head>
 <body>
 
-<!-- ===== Экран авторизации ===== -->
+<!-- Экран авторизации -->
 <div class="auth-screen" id="authScreen">
   <h1 id="authTitle">Вход</h1>
   <div class="auth-error" id="authError"></div>
@@ -259,10 +263,9 @@
   </div>
 </div>
 
-<!-- ===== Основное приложение ===== -->
+<!-- Основное приложение -->
 <div class="app" id="app">
-  <!-- Сайдбар -->
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <button class="icon-btn" id="settingsBtn" title="Настройки">
         <svg viewBox="0 0 24 24" fill="currentColor">
@@ -277,31 +280,26 @@
       </button>
     </div>
     
-    <!-- Поиск друзей -->
     <div class="search-friends">
-      <input type="text" id="searchFriendInput" placeholder=" Найти друга по логину...">
+      <input type="text" id="searchFriendInput" placeholder="🔍 Найти друга по логину...">
     </div>
     
     <div class="chat-list" id="chatList"></div>
   </aside>
 
-  <!-- Область чата -->
   <main class="chat-area" id="chatArea">
     <div class="empty-chat" id="emptyChat">Выберите чат</div>
   </main>
 </div>
 
-<!-- ===== Модалка настроек ===== -->
+<!-- Модалка настроек -->
 <div class="modal-overlay" id="settingsModal">
-      <div class="btn-row" style="margin-bottom:12px;">
-      <button class="btn-secondary" id="themeToggle">🌙 Тёмная тема</button>
-      <button class="btn-primary" id="adminPanelBtn" style="display:none;">⚙️ Админ-панель</button>
-    </div>
   <div class="modal">
     <h2>Настройки</h2>
     <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsUsername"></b></p>
     <div class="btn-row" style="margin-bottom:12px;">
-      <button class="btn-secondary" id="themeToggle"> Тёмная тема</button>
+      <button class="btn-secondary" id="themeToggle">🌙 Тёмная тема</button>
+      <button class="btn-primary" id="adminPanelBtn" style="display:none;">⚙️ Админ-панель</button>
     </div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeModal('settingsModal')">Закрыть</button>
@@ -310,7 +308,7 @@
   </div>
 </div>
 
-<!-- ===== Модалка профиля ===== -->
+<!-- Модалка профиля -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal">
     <h2>Профиль</h2>
@@ -320,6 +318,18 @@
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeModal('profileModal')">Отмена</button>
       <button class="btn-primary" id="saveProfileBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка Админ-панели -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal" style="width: 400px;">
+    <h2>Админ-панель</h2>
+    <p style="color:#888; margin-bottom:16px; font-size:14px;">Заявки на регистрацию:</p>
+    <div id="pendingList" style="max-height: 300px; overflow-y: auto;"></div>
+    <div class="btn-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick="closeModal('adminModal'); openModal('settingsModal')">Назад</button>
     </div>
   </div>
 </div>
@@ -338,8 +348,14 @@ let state = {
 };
 
 const $ = id => document.getElementById(id);
-const openModal  = id => $(id).classList.add('active');
+const openModal = id => $(id).classList.add('active');
 const closeModal = id => $(id).classList.remove('active');
+
+// Формируем ID чата из двух ID пользователей (всегда в одном порядке)
+function getChatId(id1, id2) {
+  if (id1 === id2) return `${id1}_${id1}`; // Избранное
+  return [id1, id2].sort().join('_');
+}
 
 function applyTheme() {
   if (state.darkTheme) {
@@ -357,17 +373,15 @@ function initSocket() {
   socket.on('connect', () => console.log('🟢 Socket подключен:', socket.id));
   
   socket.on('newMessage', (message) => {
-    if (String(message.chatId) === String(state.activeChatId)) {
+    const chat = state.chats.find(c => c.chatId === message.chatId);
+    if (chat) {
       const isOwn = message.senderId._id === state.currentUser.id;
       const time = new Date(message.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
-      const chat = state.chats.find(c => String(c.id) === String(message.chatId));
-      if (chat) {
-        const exists = chat.messages.some(m => m.time === time && m.text === message.text);
-        if (!exists) {
-          chat.messages.push({ text: message.text, own: isOwn, time, _id: message._id });
-          renderMessages();
-          renderChatList();
-        }
+      const exists = chat.messages.some(m => m._id === message._id);
+      if (!exists) {
+        chat.messages.push({ text: message.text, own: isOwn, time, _id: message._id });
+        renderMessages();
+        renderChatList();
       }
     }
   });
@@ -431,7 +445,6 @@ $('logoutBtn').onclick = () => {
   $('authPass').value = '';
 };
 
-// ===== ПРОФИЛЬ И НАСТРОЙКИ =====
 $('profileBtn').onclick = () => {
   $('profileName').value = state.currentUser.name;
   updateAvatarPreview(state.currentUser.avatar);
@@ -463,7 +476,6 @@ $('saveProfileBtn').onclick = () => {
 
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
-  // Показываем кнопку админки только если пользователь админ
   $('adminPanelBtn').style.display = state.currentUser.isAdmin ? 'block' : 'none';
   openModal('settingsModal');
 };
@@ -474,7 +486,6 @@ $('themeToggle').onclick = () => {
   applyTheme();
 };
 
-// ===== АДМИН ПАНЕЛЬ =====
 $('adminPanelBtn').onclick = async () => {
   closeModal('settingsModal');
   openModal('adminModal');
@@ -522,7 +533,6 @@ async function approveUser(username) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     alert(data.msg);
-    // Обновляем список
     state.pendingUsers = state.pendingUsers.filter(u => u.username !== username);
     renderPendingUsers();
   } catch (e) {
@@ -530,7 +540,7 @@ async function approveUser(username) {
   }
 }
 
-// ===== ПОИСК ДРУЗЕЙ (РЕАЛЬНЫЙ) =====
+// РЕАЛЬНЫЙ ПОИСК ДРУЗЕЙ
 $('searchFriendInput').onkeydown = async (e) => {
   if (e.key !== 'Enter') return;
   const username = e.target.value.trim();
@@ -549,25 +559,31 @@ $('searchFriendInput').onkeydown = async (e) => {
     }
 
     const user = await res.json();
-    // Проверяем, есть ли уже такой чат
-    let chat = state.chats.find(c => c.username === user.username);
+    if (user._id === state.currentUser.id) {
+      alert('Это вы сами!');
+      e.target.value = '';
+      return;
+    }
+
+    const chatId = getChatId(state.currentUser.id, user._id);
+    let chat = state.chats.find(c => c.chatId === chatId);
     if (!chat) {
       chat = {
-        id: user._id,
+        chatId: chatId,
         name: user.name,
         username: user.username,
         avatar: user.avatar || user.username[0].toUpperCase(),
-        messages: []
+        messages: [],
+        partnerId: user._id
       };
       state.chats.push(chat);
     }
     
-    state.activeChatId = chat.id;
+    state.activeChatId = chat.chatId;
     renderChatList();
     renderChat();
     e.target.value = '';
     
-    // На мобильном скрываем сайдбар
     if (window.innerWidth <= 768) {
       $('sidebar').classList.add('hidden');
     }
@@ -576,25 +592,47 @@ $('searchFriendInput').onkeydown = async (e) => {
   }
 };
 
-// ===== РЕНДЕР =====
+// ЗАГРУЗКА ЧАТОВ С СЕРВЕРА
+async function loadChats() {
+  try {
+    const res = await fetch(`${API_URL}/api/chats`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (res.ok) {
+      const chats = await res.json();
+      state.chats = chats.map(c => ({
+        chatId: c.chatId,
+        name: c.name,
+        username: c.username,
+        avatar: c.avatar,
+        messages: [],
+        partnerId: c.partnerId,
+        lastMessage: c.lastMessage,
+        lastTime: c.lastTime
+      }));
+    }
+  } catch (e) {
+    console.error('Ошибка загрузки чатов:', e);
+  }
+}
+
 function renderChatList() {
   const list = $('chatList');
   list.innerHTML = '';
   state.chats.forEach(c => {
-    const last = c.messages[c.messages.length - 1];
     const div = document.createElement('div');
-    div.className = 'chat-item' + (String(c.id) === String(state.activeChatId) ? ' active' : '');
+    div.className = 'chat-item' + (c.chatId === state.activeChatId ? ' active' : '');
     div.innerHTML = `
       <div class="avatar" style="${c.avatar && c.avatar.length > 1 ? `background-image:url(${c.avatar})` : ''}">${c.avatar && c.avatar.length <= 1 ? c.avatar : ''}</div>
       <div class="chat-info">
         <div class="chat-top">
           <span class="chat-name">${c.name}</span>
-          <span class="chat-time">${last ? last.time : ''}</span>
+          <span class="chat-time">${c.lastTime || ''}</span>
         </div>
-        <div class="chat-preview">${last ? last.text : 'Нет сообщений'}</div>
+        <div class="chat-preview">${c.lastMessage || 'Нет сообщений'}</div>
       </div>`;
     div.onclick = () => { 
-      state.activeChatId = c.id; 
+      state.activeChatId = c.chatId; 
       renderChatList(); 
       renderChat(); 
       if (window.innerWidth <= 768) $('sidebar').classList.add('hidden');
@@ -607,12 +645,12 @@ function closeChatMobile() {
   state.activeChatId = null;
   $('sidebar').classList.remove('hidden');
   renderChatList();
-  $('chatArea').innerHTML = '<div class="empty-chat" id="emptyChat">Выберите чат</div>';
+  $('chatArea').innerHTML = '<div class="empty-chat">Выберите чат</div>';
 }
 
 async function renderChat() {
   const area = $('chatArea');
-  const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
+  const chat = state.chats.find(c => c.chatId === state.activeChatId);
   if (!chat) return;
 
   area.innerHTML = `
@@ -638,7 +676,7 @@ async function renderChat() {
   renderMessages();
 
   try {
-    const res = await fetch(`${API_URL}/api/messages/${chat.id}`, {
+    const res = await fetch(`${API_URL}/api/messages/${chat.chatId}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
     if (res.ok) {
@@ -653,7 +691,7 @@ async function renderChat() {
     }
   } catch (e) { console.error(e); }
 
-  if (socket) socket.emit('joinChat', String(chat.id));
+  if (socket) socket.emit('joinChat', chat.chatId);
 
   const input = $('msgInput');
   input.focus();
@@ -662,7 +700,7 @@ async function renderChat() {
 }
 
 function renderMessages() {
-  const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
+  const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const box = $('messages');
   if (!box || !chat) return;
   box.innerHTML = '';
@@ -680,24 +718,53 @@ function sendMessage() {
   const text = input.value.trim();
   if (!text || !state.activeChatId) return;
 
-  const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
+  const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const time = new Date().toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
   
   chat.messages.push({ text, own: true, time });
+  chat.lastMessage = text;
+  chat.lastTime = time;
   input.value = '';
   renderMessages();
   renderChatList();
 
   if (socket) {
-    socket.emit('sendMessage', { chatId: String(chat.id), text, senderId: state.currentUser.id });
+    socket.emit('sendMessage', { 
+      chatId: chat.chatId, 
+      text, 
+      senderId: state.currentUser.id,
+      partnerId: chat.partnerId
+    });
   }
 }
 
-function showApp() {
+async function showApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
   applyTheme();
   initSocket();
+  
+  // Создаём чат "Избранное" с самим собой
+  const favChatId = getChatId(state.currentUser.id, state.currentUser.id);
+  const favChat = {
+    chatId: favChatId,
+    name: 'Избранное',
+    username: state.currentUser.username,
+    avatar: state.currentUser.avatar || state.currentUser.username[0].toUpperCase(),
+    messages: [],
+    partnerId: state.currentUser.id,
+    lastMessage: '',
+    lastTime: '',
+    isFavorite: true
+  };
+  
+  await loadChats();
+  
+  // Добавляем Избранное в начало списка (если ещё нет)
+  if (!state.chats.find(c => c.isFavorite)) {
+    state.chats.unshift(favChat);
+  }
+  
   renderChatList();
 }
 
@@ -720,16 +787,5 @@ document.querySelectorAll('.modal-overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('active'); });
 });
 </script>
-<!-- ===== Модалка Админ-панели ===== -->
-<div class="modal-overlay" id="adminModal">
-  <div class="modal" style="width: 400px;">
-    <h2>Админ-панель</h2>
-    <p style="color:#888; margin-bottom:16px; font-size:14px;">Заявки на регистрацию:</p>
-    <div id="pendingList" style="max-height: 300px; overflow-y: auto;"></div>
-    <div class="btn-row" style="margin-top: 16px;">
-      <button class="btn-secondary" onclick="closeModal('adminModal'); openModal('settingsModal')">Назад</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
