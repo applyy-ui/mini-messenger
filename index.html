@@ -668,7 +668,7 @@ $('searchFriendInput').onkeydown = async (e) => {
         chatId: chatId,
         name: user.name,
         username: user.username,
-        avatar: user.avatar || user.username[0].toUpperCase(),
+        avatar: user.avatar || (user.username ? user.username[0].toUpperCase() : '?'),
         messages: [],
         partnerId: user._id
       };
@@ -907,19 +907,27 @@ async function showApp() {
   
   const favChatId = getChatId(state.currentUser.id, state.currentUser.id);
   const favChat = {
-    chatId: favChatId,
-    name: 'Избранное',
-    username: state.currentUser.username,
-    avatar: state.currentUser.avatar || state.currentUser.username[0].toUpperCase(),
-    messages: [],
-    partnerId: state.currentUser.id,
-    lastMessage: '',
-    lastTime: '',
-    isFavorite: true
+  chatId: favChatId,
+  name: 'Избранное',
+  username: state.currentUser.username || 'user',
+  avatar: state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?'),
+  messages: [],
+  partnerId: state.currentUser.id,
+  lastMessage: '',
+  lastTime: '',
+  isFavorite: true
   };
   
   await loadChats();
-  
+  // Убеждаемся, что favChat не дублируется
+const existingFav = state.chats.find(c => c.isFavorite);
+if (existingFav) {
+  // Если уже есть - обновляем его данные
+  existingFav.name = 'Избранное';
+  existingFav.avatar = state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?');
+} else {
+  state.chats.unshift(favChat);
+}
   if (!state.chats.find(c => c.isFavorite)) {
     state.chats.unshift(favChat);
   }
