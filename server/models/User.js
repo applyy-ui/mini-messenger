@@ -6,6 +6,7 @@ const userSchema = new Schema({
   name: { type: String, required: true },
   avatar: { type: String, default: '' },
   isApproved: { type: Boolean, default: false },
+  isAdmin: { type: Boolean, default: false }, // <-- НОВОЕ ПОЛЕ
   contacts: [{ type: Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 

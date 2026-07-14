@@ -221,6 +221,23 @@
     border-radius: 8px; background: #f4f6f8;
   }
   .search-friends input:focus { border-color: #2AABEE; background: #fff; }
+
+
+    /* ===== МОБИЛЬНАЯ АДАПТАЦИЯ ===== */
+  @media (max-width: 768px) {
+    .app.active { position: relative; }
+    .sidebar { 
+      position: absolute; width: 100%; height: 100%; z-index: 20; 
+      transform: translateX(0); transition: transform 0.3s ease;
+    }
+    .sidebar.hidden { transform: translateX(-100%); }
+    .chat-area { width: 100%; position: absolute; inset: 0; z-index: 10; background: #e7ebf0; }
+    body.dark .chat-area { background: #0f1419; }
+    
+    /* Кнопка "Назад" для мобильных */
+    .mobile-back-btn { display: flex !important; }
+  }
+  .mobile-back-btn { display: none; }
 </style>
 </head>
 <body>
@@ -276,6 +293,10 @@
 
 <!-- ===== Модалка настроек ===== -->
 <div class="modal-overlay" id="settingsModal">
+      <div class="btn-row" style="margin-bottom:12px;">
+      <button class="btn-secondary" id="themeToggle">🌙 Тёмная тема</button>
+      <button class="btn-primary" id="adminPanelBtn" style="display:none;">⚙️ Админ-панель</button>
+    </div>
   <div class="modal">
     <h2>Настройки</h2>
     <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsUsername"></b></p>
@@ -304,49 +325,41 @@
 </div>
 
 <script>
-/* ===== КОНФИГУРАЦИЯ ===== */
 const API_URL = 'https://mini-messenger-qil3.onrender.com';
 let socket = null;
 
-/* ===== Состояние приложения ===== */
 let state = {
   mode: 'login',
   currentUser: null,
   activeChatId: null,
   chats: [],
-  darkTheme: localStorage.getItem('darkTheme') === 'true'
+  darkTheme: localStorage.getItem('darkTheme') === 'true',
+  pendingUsers: []
 };
 
-/* ===== Утилиты ===== */
 const $ = id => document.getElementById(id);
 const openModal  = id => $(id).classList.add('active');
 const closeModal = id => $(id).classList.remove('active');
 
-/* ===== Применение темы ===== */
 function applyTheme() {
   if (state.darkTheme) {
     document.body.classList.add('dark');
     $('themeToggle').textContent = '☀️ Светлая тема';
   } else {
     document.body.classList.remove('dark');
-    $('themeToggle').textContent = ' Тёмная тема';
+    $('themeToggle').textContent = '🌙 Тёмная тема';
   }
 }
 
-/* ===== Socket.io ===== */
 function initSocket() {
   if (socket) socket.disconnect();
-  socket = io(API_URL, {
-    auth: { token: localStorage.getItem('token') }
-  });
-
+  socket = io(API_URL, { auth: { token: localStorage.getItem('token') } });
   socket.on('connect', () => console.log('🟢 Socket подключен:', socket.id));
   
   socket.on('newMessage', (message) => {
     if (String(message.chatId) === String(state.activeChatId)) {
       const isOwn = message.senderId._id === state.currentUser.id;
       const time = new Date(message.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
-      
       const chat = state.chats.find(c => String(c.id) === String(message.chatId));
       if (chat) {
         const exists = chat.messages.some(m => m.time === time && m.text === message.text);
@@ -360,7 +373,6 @@ function initSocket() {
   });
 }
 
-/* ===== Авторизация ===== */
 function switchAuthMode() {
   state.mode = state.mode === 'login' ? 'register' : 'login';
   $('authTitle').textContent = state.mode === 'login' ? 'Вход' : 'Регистрация';
@@ -374,37 +386,30 @@ $('switchLink').onclick = switchAuthMode;
 
 $('authBtn').onclick = async () => {
   const username = $('authUsername').value.trim();
-  const pass  = $('authPass').value;
-  const name  = $('authName').value.trim();
+  const pass = $('authPass').value;
+  const name = $('authName').value.trim();
   const err = $('authError');
   
   if (!username || !pass) return err.textContent = 'Заполните все поля';
   if (state.mode === 'register' && !name) return err.textContent = 'Введите имя';
 
   err.textContent = 'Загрузка...';
+  const endpoint = state.mode === 'register' ? '/register' : '/login';
 
   try {
+    const res = await fetch(`${API_URL}/api/auth${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.mode === 'register' ? { username, name, password: pass } : { username, password: pass })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Ошибка');
+    
     if (state.mode === 'register') {
-      const res = await fetch(`${API_URL}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, name, password: pass })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
-      
       err.textContent = '';
-      alert('✅ Заявка отправлена! Администратор подтвердит ваш аккаунт в ближайшее время.');
+      alert('✅ Заявка отправлена! Администратор подтвердит ваш аккаунт.');
       switchAuthMode();
     } else {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password: pass })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Неверный логин или пароль');
-
       localStorage.setItem('token', data.token);
       state.currentUser = data.user;
       err.textContent = '';
@@ -415,7 +420,6 @@ $('authBtn').onclick = async () => {
   }
 };
 
-/* ===== Выход ===== */
 $('logoutBtn').onclick = () => {
   localStorage.removeItem('token');
   state.currentUser = null;
@@ -427,7 +431,7 @@ $('logoutBtn').onclick = () => {
   $('authPass').value = '';
 };
 
-/* ===== Профиль ===== */
+// ===== ПРОФИЛЬ И НАСТРОЙКИ =====
 $('profileBtn').onclick = () => {
   $('profileName').value = state.currentUser.name;
   updateAvatarPreview(state.currentUser.avatar);
@@ -447,26 +451,20 @@ $('avatarInput').onchange = e => {
 
 function updateAvatarPreview(src) {
   const el = $('avatarEdit');
-  if (src) {
-    el.style.backgroundImage = `url(${src})`;
-    el.textContent = '';
-  } else {
-    el.style.backgroundImage = '';
-    el.textContent = (state.currentUser?.name || '?')[0].toUpperCase();
-  }
+  if (src) { el.style.backgroundImage = `url(${src})`; el.textContent = ''; } 
+  else { el.style.backgroundImage = ''; el.textContent = (state.currentUser?.name || '?')[0].toUpperCase(); }
 }
 
 $('saveProfileBtn').onclick = () => {
-  const newName = $('profileName').value.trim();
-  if (!newName) return;
-  state.currentUser.name = newName;
+  state.currentUser.name = $('profileName').value.trim() || state.currentUser.name;
   closeModal('profileModal');
   renderChatList();
 };
 
-/* ===== Настройки ===== */
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
+  // Показываем кнопку админки только если пользователь админ
+  $('adminPanelBtn').style.display = state.currentUser.isAdmin ? 'block' : 'none';
   openModal('settingsModal');
 };
 
@@ -476,41 +474,109 @@ $('themeToggle').onclick = () => {
   applyTheme();
 };
 
-/* ===== Поиск друзей ===== */
+// ===== АДМИН ПАНЕЛЬ =====
+$('adminPanelBtn').onclick = async () => {
+  closeModal('settingsModal');
+  openModal('adminModal');
+  $('pendingList').innerHTML = '<p style="text-align:center;color:#888;">Загрузка...</p>';
+  
+  try {
+    const res = await fetch(`${API_URL}/api/admin/pending`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (!res.ok) throw new Error('Ошибка загрузки');
+    state.pendingUsers = await res.json();
+    renderPendingUsers();
+  } catch (e) {
+    $('pendingList').innerHTML = `<p style="color:red;text-align:center;">${e.message}</p>`;
+  }
+};
+
+function renderPendingUsers() {
+  const list = $('pendingList');
+  if (state.pendingUsers.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:#888;">Нет новых заявок</p>';
+    return;
+  }
+  list.innerHTML = state.pendingUsers.map(u => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #eee;">
+      <div>
+        <div style="font-weight:bold;">${u.username}</div>
+        <div style="font-size:12px;color:#888;">${u.name}</div>
+      </div>
+      <button class="btn-primary" style="padding:6px 12px;font-size:13px;" onclick="approveUser('${u.username}')">Одобрить</button>
+    </div>
+  `).join('');
+}
+
+async function approveUser(username) {
+  try {
+    const res = await fetch(`${API_URL}/api/admin/approve`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+      },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    alert(data.msg);
+    // Обновляем список
+    state.pendingUsers = state.pendingUsers.filter(u => u.username !== username);
+    renderPendingUsers();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+// ===== ПОИСК ДРУЗЕЙ (РЕАЛЬНЫЙ) =====
 $('searchFriendInput').onkeydown = async (e) => {
   if (e.key !== 'Enter') return;
   const username = e.target.value.trim();
   if (!username) return;
 
   try {
-    const token = localStorage.getItem('token');
-    // Ищем пользователя (можно создать отдельный роут, пока используем заглушку)
-    const chat = state.chats.find(c => c.username === username.toLowerCase());
-    if (chat) {
-      state.activeChatId = chat.id;
-      renderChatList();
-      renderChat();
-    } else {
-      // Создаём новый чат с этим пользователем
-      const newChat = {
-        id: Date.now(),
-        name: username,
-        username: username.toLowerCase(),
-        avatar: username[0].toUpperCase(),
+    const res = await fetch(`${API_URL}/api/users/search?username=${encodeURIComponent(username)}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Пользователь не найден');
+      e.target.value = '';
+      return;
+    }
+
+    const user = await res.json();
+    // Проверяем, есть ли уже такой чат
+    let chat = state.chats.find(c => c.username === user.username);
+    if (!chat) {
+      chat = {
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        avatar: user.avatar || user.username[0].toUpperCase(),
         messages: []
       };
-      state.chats.push(newChat);
-      state.activeChatId = newChat.id;
-      renderChatList();
-      renderChat();
+      state.chats.push(chat);
     }
+    
+    state.activeChatId = chat.id;
+    renderChatList();
+    renderChat();
     e.target.value = '';
+    
+    // На мобильном скрываем сайдбар
+    if (window.innerWidth <= 768) {
+      $('sidebar').classList.add('hidden');
+    }
   } catch (err) {
-    console.error('Ошибка поиска:', err);
+    alert('Ошибка поиска. Проверьте интернет.');
   }
 };
 
-/* ===== Рендер чатов ===== */
+// ===== РЕНДЕР =====
 function renderChatList() {
   const list = $('chatList');
   list.innerHTML = '';
@@ -527,23 +593,33 @@ function renderChatList() {
         </div>
         <div class="chat-preview">${last ? last.text : 'Нет сообщений'}</div>
       </div>`;
-    div.onclick = () => { state.activeChatId = c.id; renderChatList(); renderChat(); };
+    div.onclick = () => { 
+      state.activeChatId = c.id; 
+      renderChatList(); 
+      renderChat(); 
+      if (window.innerWidth <= 768) $('sidebar').classList.add('hidden');
+    };
     list.appendChild(div);
   });
 }
 
-/* ===== Рендер переписки ===== */
+function closeChatMobile() {
+  state.activeChatId = null;
+  $('sidebar').classList.remove('hidden');
+  renderChatList();
+  $('chatArea').innerHTML = '<div class="empty-chat" id="emptyChat">Выберите чат</div>';
+}
+
 async function renderChat() {
   const area = $('chatArea');
   const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
-  
-  if (!chat) {
-    area.innerHTML = '<div class="empty-chat">Выберите чат</div>';
-    return;
-  }
+  if (!chat) return;
 
   area.innerHTML = `
     <div class="chat-header">
+      <button class="icon-btn mobile-back-btn" onclick="closeChatMobile()" style="margin-right: 8px;">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
       <div class="avatar" style="${chat.avatar && chat.avatar.length > 1 ? `background-image:url(${chat.avatar})` : ''}">${chat.avatar && chat.avatar.length <= 1 ? chat.avatar : ''}</div>
       <div>
         <div class="name">${chat.name}</div>
@@ -554,9 +630,7 @@ async function renderChat() {
     <div class="input-area">
       <input type="text" id="msgInput" placeholder="Сообщение...">
       <button class="send-btn" id="sendBtn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>`;
   
@@ -564,11 +638,9 @@ async function renderChat() {
   renderMessages();
 
   try {
-    const token = localStorage.getItem('token');
     const res = await fetch(`${API_URL}/api/messages/${chat.id}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     });
-    
     if (res.ok) {
       const messages = await res.json();
       chat.messages = messages.map(m => ({
@@ -579,9 +651,7 @@ async function renderChat() {
       }));
       renderMessages();
     }
-  } catch (e) {
-    console.error('Ошибка загрузки сообщений:', e);
-  }
+  } catch (e) { console.error(e); }
 
   if (socket) socket.emit('joinChat', String(chat.id));
 
@@ -619,15 +689,10 @@ function sendMessage() {
   renderChatList();
 
   if (socket) {
-    socket.emit('sendMessage', {
-      chatId: String(chat.id),
-      text: text,
-      senderId: state.currentUser.id
-    });
+    socket.emit('sendMessage', { chatId: String(chat.id), text, senderId: state.currentUser.id });
   }
 }
 
-/* ===== Запуск ===== */
 function showApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
@@ -640,27 +705,31 @@ window.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('token');
   if (token) {
     try {
-      const res = await fetch(`${API_URL}/api/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/profile`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.ok) {
-        const data = await res.json();
-        state.currentUser = data.user;
+        state.currentUser = (await res.json()).user;
         showApp();
       } else {
         localStorage.removeItem('token');
       }
-    } catch(e) {
-      localStorage.removeItem('token');
-    }
+    } catch(e) { localStorage.removeItem('token'); }
   }
 });
 
 document.querySelectorAll('.modal-overlay').forEach(ov => {
-  ov.addEventListener('click', e => {
-    if (e.target === ov) ov.classList.remove('active');
-  });
+  ov.addEventListener('click', e => { if (e.target === ov) ov.classList.remove('active'); });
 });
 </script>
+<!-- ===== Модалка Админ-панели ===== -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal" style="width: 400px;">
+    <h2>Админ-панель</h2>
+    <p style="color:#888; margin-bottom:16px; font-size:14px;">Заявки на регистрацию:</p>
+    <div id="pendingList" style="max-height: 300px; overflow-y: auto;"></div>
+    <div class="btn-row" style="margin-top: 16px;">
+      <button class="btn-secondary" onclick="closeModal('adminModal'); openModal('settingsModal')">Назад</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

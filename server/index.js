@@ -19,6 +19,8 @@ app.use('/api/messages', require('./routes/messages'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./middleware/auth'), require('./routes/profile'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/users', require('./routes/users'));
+
 
 const server = http.createServer(app);
 
