@@ -11,7 +11,6 @@
   button { cursor: pointer; border: none; background: none; font: inherit; }
   input { font: inherit; outline: none; }
 
-  /* ТЁМНАЯ ТЕМА */
   body.dark { background: #0f1419; }
   body.dark .auth-screen { background: #15202b; color: #fff; }
   body.dark .auth-screen input { background: #22303c; border-color: #38444d; color: #fff; }
@@ -50,7 +49,6 @@
   body.dark .search-friends { border-bottom-color: #38444d; }
   body.dark .search-friends input { background: #22303c; border-color: #38444d; color: #fff; }
 
-  /* Экран авторизации */
   .auth-screen {
     background: #fff; width: 360px; padding: 32px; border-radius: 12px;
     box-shadow: 0 4px 24px rgba(0,0,0,.08);
@@ -71,11 +69,9 @@
   .auth-screen .switch a { color: #2AABEE; cursor: pointer; }
   .auth-error { color: #e53935; font-size: 13px; margin-bottom: 10px; min-height: 18px; }
 
-  /* Главный экран */
   .app { display: none; width: 100%; height: 100vh; background: #fff; position: relative; }
   .app.active { display: flex; }
 
-  /* Сайдбар */
   .sidebar {
     width: 340px; border-right: 1px solid #e7ebf0;
     display: flex; flex-direction: column; background: #fff;
@@ -120,7 +116,6 @@
     margin-top: 2px;
   }
 
-  /* Область чата */
   .chat-area {
     flex: 1; display: flex; flex-direction: column;
     background: #e7ebf0; height: 100%;
@@ -170,7 +165,6 @@
     color: #707579; font-size: 15px;
   }
 
-  /* Модальные окна */
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,.4); z-index: 100;
@@ -190,7 +184,7 @@
     overflow: hidden; background-size: cover; background-position: center;
   }
   .modal .avatar-edit::after {
-    content: "📷"; position: absolute; inset: 0;
+    content: ""; position: absolute; inset: 0;
     background: rgba(0,0,0,.4); color: #fff;
     display: flex; align-items: center; justify-content: center;
     opacity: 0; transition: .2s; font-size: 24px;
@@ -220,7 +214,6 @@
   }
   .search-friends input:focus { border-color: #2AABEE; background: #fff; }
 
-  /* МОБИЛЬНАЯ АДАПТАЦИЯ */
   @media (max-width: 768px) {
     .auth-screen { width: 90%; max-width: 360px; }
     
@@ -246,7 +239,6 @@
 </head>
 <body>
 
-<!-- Экран авторизации -->
 <div class="auth-screen" id="authScreen">
   <h1 id="authTitle">Вход</h1>
   <div class="auth-error" id="authError"></div>
@@ -263,7 +255,6 @@
   </div>
 </div>
 
-<!-- Основное приложение -->
 <div class="app" id="app">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -281,7 +272,7 @@
     </div>
     
     <div class="search-friends">
-      <input type="text" id="searchFriendInput" placeholder="🔍 Найти друга по логину...">
+      <input type="text" id="searchFriendInput" placeholder="Найти друга по логину...">
     </div>
     
     <div class="chat-list" id="chatList"></div>
@@ -292,14 +283,13 @@
   </main>
 </div>
 
-<!-- Модалка настроек -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <h2>Настройки</h2>
     <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsUsername"></b></p>
     <div class="btn-row" style="margin-bottom:12px;">
-      <button class="btn-secondary" id="themeToggle">🌙 Тёмная тема</button>
-      <button class="btn-primary" id="adminPanelBtn" style="display:none;">⚙️ Админ-панель</button>
+      <button class="btn-secondary" id="themeToggle">Темная тема</button>
+      <button class="btn-primary" id="adminPanelBtn" style="display:none;">Админ-панель</button>
     </div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeModal('settingsModal')">Закрыть</button>
@@ -308,7 +298,6 @@
   </div>
 </div>
 
-<!-- Модалка профиля -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal">
     <h2>Профиль</h2>
@@ -322,7 +311,6 @@
   </div>
 </div>
 
-<!-- Модалка Админ-панели -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal" style="width: 400px;">
     <h2>Админ-панель</h2>
@@ -351,26 +339,30 @@ const $ = id => document.getElementById(id);
 const openModal = id => $(id).classList.add('active');
 const closeModal = id => $(id).classList.remove('active');
 
-// Формируем ID чата из двух ID пользователей (всегда в одном порядке)
 function getChatId(id1, id2) {
-  if (id1 === id2) return `${id1}_${id1}`; // Избранное
+  if (id1 === id2) return `${id1}_${id1}`;
   return [id1, id2].sort().join('_');
 }
 
 function applyTheme() {
   if (state.darkTheme) {
     document.body.classList.add('dark');
-    $('themeToggle').textContent = '☀️ Светлая тема';
+    $('themeToggle').textContent = 'Светлая тема';
   } else {
     document.body.classList.remove('dark');
-    $('themeToggle').textContent = '🌙 Тёмная тема';
+    $('themeToggle').textContent = 'Темная тема';
   }
 }
 
 function initSocket() {
   if (socket) socket.disconnect();
   socket = io(API_URL, { auth: { token: localStorage.getItem('token') } });
-  socket.on('connect', () => console.log('🟢 Socket подключен:', socket.id));
+  socket.on('connect', () => console.log('Socket подключен:', socket.id));
+  
+  // Подключаемся к комнате текущего пользователя для получения уведомлений о новых чатах
+  socket.on('connect', () => {
+    socket.emit('joinUserRoom', state.currentUser.id);
+  });
   
   socket.on('newMessage', (message) => {
     const chat = state.chats.find(c => c.chatId === message.chatId);
@@ -380,9 +372,29 @@ function initSocket() {
       const exists = chat.messages.some(m => m._id === message._id);
       if (!exists) {
         chat.messages.push({ text: message.text, own: isOwn, time, _id: message._id });
+        chat.lastMessage = message.text;
+        chat.lastTime = time;
         renderMessages();
         renderChatList();
       }
+    }
+  });
+
+  // Автоматическое добавление нового чата
+  socket.on('newChat', (chatData) => {
+    const exists = state.chats.find(c => c.chatId === chatData.chatId);
+    if (!exists) {
+      state.chats.unshift({
+        chatId: chatData.chatId,
+        name: chatData.name,
+        username: chatData.username,
+        avatar: chatData.avatar,
+        messages: [],
+        partnerId: chatData.partnerId,
+        lastMessage: chatData.lastMessage,
+        lastTime: chatData.lastTime
+      });
+      renderChatList();
     }
   });
 }
@@ -421,7 +433,7 @@ $('authBtn').onclick = async () => {
     
     if (state.mode === 'register') {
       err.textContent = '';
-      alert('✅ Заявка отправлена! Администратор подтвердит ваш аккаунт.');
+      alert('Заявка отправлена! Администратор подтвердит ваш аккаунт.');
       switchAuthMode();
     } else {
       localStorage.setItem('token', data.token);
@@ -476,7 +488,12 @@ $('saveProfileBtn').onclick = () => {
 
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
-  $('adminPanelBtn').style.display = state.currentUser.isAdmin ? 'block' : 'none';
+  // Показываем кнопку админки только если пользователь админ
+  if (state.currentUser.isAdmin) {
+    $('adminPanelBtn').style.display = 'block';
+  } else {
+    $('adminPanelBtn').style.display = 'none';
+  }
   openModal('settingsModal');
 };
 
@@ -540,7 +557,6 @@ async function approveUser(username) {
   }
 }
 
-// РЕАЛЬНЫЙ ПОИСК ДРУЗЕЙ
 $('searchFriendInput').onkeydown = async (e) => {
   if (e.key !== 'Enter') return;
   const username = e.target.value.trim();
@@ -592,7 +608,6 @@ $('searchFriendInput').onkeydown = async (e) => {
   }
 };
 
-// ЗАГРУЗКА ЧАТОВ С СЕРВЕРА
 async function loadChats() {
   try {
     const res = await fetch(`${API_URL}/api/chats`, {
@@ -721,12 +736,8 @@ function sendMessage() {
   const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const time = new Date().toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
   
-  chat.messages.push({ text, own: true, time });
-  chat.lastMessage = text;
-  chat.lastTime = time;
+  // НЕ добавляем оптимистично - ждем подтверждения от сервера через сокет
   input.value = '';
-  renderMessages();
-  renderChatList();
 
   if (socket) {
     socket.emit('sendMessage', { 
@@ -744,7 +755,6 @@ async function showApp() {
   applyTheme();
   initSocket();
   
-  // Создаём чат "Избранное" с самим собой
   const favChatId = getChatId(state.currentUser.id, state.currentUser.id);
   const favChat = {
     chatId: favChatId,
@@ -760,7 +770,6 @@ async function showApp() {
   
   await loadChats();
   
-  // Добавляем Избранное в начало списка (если ещё нет)
   if (!state.chats.find(c => c.isFavorite)) {
     state.chats.unshift(favChat);
   }
