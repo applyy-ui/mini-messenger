@@ -361,8 +361,10 @@ function initSocket() {
   
   // Подключаемся к комнате текущего пользователя для получения уведомлений о новых чатах
   socket.on('connect', () => {
-    socket.emit('joinUserRoom', state.currentUser.id);
-  });
+  socket.emit('joinUserRoom', state.currentUser.id);
+  // Отправляем событие, что пользователь онлайн
+  socket.emit('userOnline', state.currentUser.id);
+});
   
   socket.on('newMessage', (message) => {
   console.log('📩 Получено сообщение:', message);
@@ -456,6 +458,50 @@ socket.on('messageSent', ({ _id, chatId, tempId }) => {
     if (msgIndex !== -1) {
       chat.messages[msgIndex]._id = _id;
       renderMessages();
+    }
+  }
+});
+// --- СТАТУС ПОЛЬЗОВАТЕЛЯ ---
+socket.on('userStatus', ({ userId, status }) => {
+  console.log(`📡 Статус пользователя ${userId}: ${status}`);
+  
+  // Обновляем статус в активном чате
+  const statusEl = document.querySelector('.chat-header .status');
+  if (statusEl && state.activeChatId) {
+    const chat = state.chats.find(c => c.chatId === state.activeChatId);
+    if (chat && chat.partnerId === userId) {
+      statusEl.textContent = status === 'online' ? '🟢 в сети' : '⚪ был(а) недавно';
+    }
+  }
+});
+
+// --- ИНДИКАТОР ПЕЧАТАНИЯ ---
+socket.on('userTyping', ({ chatId, username }) => {
+  // Проверяем, что это активный чат
+  if (state.activeChatId === chatId) {
+    const statusEl = document.querySelector('.chat-header .status');
+    if (statusEl) {
+      statusEl.textContent = `✏️ ${username} печатает...`;
+      clearTimeout(window.typingTimeout);
+      window.typingTimeout = setTimeout(() => {
+        // Возвращаем статус "в сети" через 2 секунды
+        const chat = state.chats.find(c => c.chatId === state.activeChatId);
+        if (chat) {
+          // Проверяем, онлайн ли собеседник
+          fetch(`${API_URL}/api/users/status/${chat.partnerId}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (statusEl) {
+              statusEl.textContent = data.isOnline ? '🟢 в сети' : '⚪ был(а) недавно';
+            }
+          })
+          .catch(() => {
+            if (statusEl) statusEl.textContent = 'в сети';
+          });
+        }
+      }, 2000);
     }
   }
 });
@@ -766,7 +812,7 @@ async function renderChat() {
       <div class="avatar" style="${chat.avatar && chat.avatar.length > 1 ? `background-image:url(${chat.avatar})` : ''}">${chat.avatar && chat.avatar.length <= 1 ? chat.avatar : ''}</div>
       <div>
         <div class="name">${chat.name}</div>
-        <div class="status">в сети</div>
+        <div class="status" id="chatStatus">Загрузка...</div>
       </div>
     </div>
     <div class="messages" id="messages"></div>
@@ -776,7 +822,21 @@ async function renderChat() {
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>`;
-  
+    // Получаем статус собеседника
+  const statusEl = document.querySelector('#chatStatus');
+  if (statusEl && chat.partnerId) {
+    fetch(`${API_URL}/api/users/status/${chat.partnerId}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+      statusEl.textContent = data.isOnline ? '🟢 в сети' : '⚪ был(а) недавно';
+    })
+    .catch(() => {
+      statusEl.textContent = 'в сети';
+    });
+  }
+
   chat.messages = []; 
   renderMessages();
 
@@ -872,6 +932,8 @@ function sendMessage() {
       partnerId: chat.partnerId,
       tempId
     });
+      // После socket.emit('sendMessage', ...) добавь:
+      socket.emit('typing', { chatId: chat.chatId, username: '' });
   } else {
     // Fallback через REST API
     fetch(`${API_URL}/api/messages`, {

@@ -1,13 +1,44 @@
-const { Schema, model } = require('mongoose');
+const mongoose = require('mongoose');
 
-const userSchema = new Schema({
-  username: { type: String, required: true, unique: true, trim: true, lowercase: true },
-  password: { type: String, required: true },
-  name: { type: String, required: true },
-  avatar: { type: String, default: '' },
-  isApproved: { type: Boolean, default: false },
-  isAdmin: { type: Boolean, default: false }, // <-- НОВОЕ ПОЛЕ
-  contacts: [{ type: Schema.Types.ObjectId, ref: 'User' }]
-}, { timestamps: true });
+const userSchema = new mongoose.Schema({
+  username: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
+  name: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  password: { 
+    type: String, 
+    required: true 
+  },
+  avatar: { 
+    type: String, 
+    default: '' 
+  },
+  isAdmin: { 
+    type: Boolean, 
+    default: false 
+  },
+  isApproved: { 
+    type: Boolean, 
+    default: false 
+  },
+  isOnline: { 
+    type: Boolean, 
+    default: false 
+  },
+  lastSeen: { 
+    type: Date, 
+    default: Date.now 
+  }
+}, { 
+  timestamps: true 
+});
 
-module.exports = model('User', userSchema);
+module.exports = mongoose.model('User', userSchema);
