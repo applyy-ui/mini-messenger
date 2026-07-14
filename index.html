@@ -367,19 +367,40 @@ function initSocket() {
   socket.on('newMessage', (message) => {
   console.log('📩 Получено сообщение:', message);
   
-  const chat = state.chats.find(c => c.chatId === message.chatId);
+  let chat = state.chats.find(c => c.chatId === message.chatId);
+  
+  // Если чата нет - создаем новый
   if (!chat) {
-    console.warn('Чат не найден:', message.chatId);
-    return;
+    console.log('🆕 Создаем новый чат:', message.chatId);
+    
+    // Определяем имя партнера
+    const isOwn = message.senderId._id === state.currentUser.id;
+    const partnerName = isOwn 
+      ? (message.receiverId?.name || message.receiverId?.username || 'Неизвестный')
+      : (message.senderId.name || message.senderId.username || 'Неизвестный');
+    const partnerAvatar = isOwn ? message.receiverId?.avatar : message.senderId.avatar;
+    const partnerId = isOwn ? message.receiverId?._id || message.partnerId : message.senderId._id;
+    
+    chat = {
+      chatId: message.chatId,
+      name: partnerName,
+      username: message.senderId.username,
+      avatar: partnerAvatar || partnerName[0]?.toUpperCase() || '?',
+      messages: [],
+      partnerId: partnerId,
+      lastMessage: message.text,
+      lastTime: new Date(message.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'})
+    };
+    
+    state.chats.unshift(chat);
+    renderChatList();
   }
   
   // Проверка на дубли
   const exists = chat.messages.some(m => {
-    // По _id
     if (m._id && message._id && m._id.toString() === message._id.toString()) {
       return true;
     }
-    // По тексту + отправитель + время (в пределах 3 секунд)
     if (m.text === message.text && 
         m.senderId === message.senderId._id &&
         Math.abs(new Date(m.createdAt || m.time) - new Date(message.createdAt)) < 3000) {
@@ -415,7 +436,11 @@ function initSocket() {
     return new Date(b.lastTime) - new Date(a.lastTime);
   });
   
-  renderMessages();
+  // Если чат активен - обновляем сообщения
+  if (state.activeChatId === chat.chatId) {
+    renderMessages();
+  }
+  
   renderChatList();
 });
 
@@ -789,12 +814,8 @@ function renderMessages() {
   const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const box = $('messages');
   if (!box || !chat) return;
-  function renderMessages() {
-  const chat = state.chats.find(c => c.chatId === state.activeChatId);
-  const box = $('messages');
-  if (!box || !chat) return;
   
-  // Очищаем дубликаты ПОСЛЕ этой строки (вставь сюда)
+  // Очищаем дубликаты
   const uniqueMessages = [];
   const seenIds = new Set();
   chat.messages.forEach(m => {
@@ -808,16 +829,7 @@ function renderMessages() {
   });
   chat.messages = uniqueMessages;
   
-  // Дальше идет существующий код рендера (не трогай)
-  box.innerHTML = '';
-  chat.messages.forEach(m => {
-    const div = document.createElement('div');
-    div.className = 'message' + (m.own ? ' own' : '');
-    div.innerHTML = `<div>${m.text}</div><div class="time">${m.time}</div>`;
-    box.appendChild(div);
-  });
-  box.scrollTop = box.scrollHeight;
-}
+  // Рендерим сообщения
   box.innerHTML = '';
   chat.messages.forEach(m => {
     const div = document.createElement('div');
