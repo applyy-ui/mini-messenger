@@ -365,20 +365,75 @@ function initSocket() {
   });
   
   socket.on('newMessage', (message) => {
-    const chat = state.chats.find(c => c.chatId === message.chatId);
-    if (chat) {
-      const isOwn = message.senderId._id === state.currentUser.id;
-      const time = new Date(message.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
-      const exists = chat.messages.some(m => m._id === message._id);
-      if (!exists) {
-        chat.messages.push({ text: message.text, own: isOwn, time, _id: message._id });
-        chat.lastMessage = message.text;
-        chat.lastTime = time;
-        renderMessages();
-        renderChatList();
-      }
+  console.log('📩 Получено сообщение:', message);
+  
+  const chat = state.chats.find(c => c.chatId === message.chatId);
+  if (!chat) {
+    console.warn('Чат не найден:', message.chatId);
+    return;
+  }
+  
+  // Проверка на дубли
+  const exists = chat.messages.some(m => {
+    // По _id
+    if (m._id && message._id && m._id.toString() === message._id.toString()) {
+      return true;
     }
+    // По тексту + отправитель + время (в пределах 3 секунд)
+    if (m.text === message.text && 
+        m.senderId === message.senderId._id &&
+        Math.abs(new Date(m.createdAt || m.time) - new Date(message.createdAt)) < 3000) {
+      return true;
+    }
+    return false;
   });
+  
+  if (exists) {
+    console.log('⏭️ Сообщение уже есть, пропускаем');
+    return;
+  }
+  
+  const isOwn = message.senderId._id === state.currentUser.id;
+  const time = new Date(message.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
+  
+  chat.messages.push({ 
+    text: message.text, 
+    own: isOwn, 
+    time, 
+    _id: message._id,
+    createdAt: message.createdAt,
+    senderId: message.senderId._id
+  });
+  
+  chat.lastMessage = message.text;
+  chat.lastTime = time;
+  
+  // Сортируем чаты
+  state.chats.sort((a, b) => {
+    if (!a.lastTime) return 1;
+    if (!b.lastTime) return -1;
+    return new Date(b.lastTime) - new Date(a.lastTime);
+  });
+  
+  renderMessages();
+  renderChatList();
+});
+
+// Добавить ПОСЛЕ этого (после строки ~320):
+socket.on('messageSent', ({ _id, chatId, tempId }) => {
+  console.log('✅ Сообщение доставлено:', _id);
+  const chat = state.chats.find(c => c.chatId === chatId);
+  if (!chat) return;
+  
+  // Заменяем временный ID на реальный
+  if (tempId) {
+    const msgIndex = chat.messages.findIndex(m => m._id === tempId);
+    if (msgIndex !== -1) {
+      chat.messages[msgIndex]._id = _id;
+      renderMessages();
+    }
+  }
+});
 
   // Автоматическое добавление нового чата
   socket.on('newChat', (chatData) => {
@@ -615,16 +670,26 @@ async function loadChats() {
     });
     if (res.ok) {
       const chats = await res.json();
-      state.chats = chats.map(c => ({
-        chatId: c.chatId,
-        name: c.name,
-        username: c.username,
-        avatar: c.avatar,
-        messages: [],
-        partnerId: c.partnerId,
-        lastMessage: c.lastMessage,
-        lastTime: c.lastTime
-      }));
+      
+      // Сохраняем избранное
+      const favorite = state.chats.find(c => c.isFavorite);
+      state.chats = [];
+      if (favorite) state.chats.push(favorite);
+      
+      chats.forEach(c => {
+        if (!state.chats.find(existing => existing.chatId === c.chatId)) {
+          state.chats.push({
+            chatId: c.chatId,
+            name: c.name,
+            username: c.username,
+            avatar: c.avatar,
+            messages: [],
+            partnerId: c.partnerId,
+            lastMessage: c.lastMessage,
+            lastTime: c.lastTime
+          });
+        }
+      });
     }
   } catch (e) {
     console.error('Ошибка загрузки чатов:', e);
@@ -711,6 +776,12 @@ async function renderChat() {
   const input = $('msgInput');
   input.focus();
   input.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
+    // Обработка ввода (для печатания, опционально)
+  input.oninput = () => {
+    if (input.value.trim()) {
+      socket.emit('typing', { chatId: chat.chatId, username: state.currentUser.username });
+    }
+  };
   $('sendBtn').onclick = sendMessage;
 }
 
@@ -718,6 +789,35 @@ function renderMessages() {
   const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const box = $('messages');
   if (!box || !chat) return;
+  function renderMessages() {
+  const chat = state.chats.find(c => c.chatId === state.activeChatId);
+  const box = $('messages');
+  if (!box || !chat) return;
+  
+  // Очищаем дубликаты ПОСЛЕ этой строки (вставь сюда)
+  const uniqueMessages = [];
+  const seenIds = new Set();
+  chat.messages.forEach(m => {
+    const id = m._id ? m._id.toString() : null;
+    if (id && !seenIds.has(id)) {
+      seenIds.add(id);
+      uniqueMessages.push(m);
+    } else if (!id) {
+      uniqueMessages.push(m);
+    }
+  });
+  chat.messages = uniqueMessages;
+  
+  // Дальше идет существующий код рендера (не трогай)
+  box.innerHTML = '';
+  chat.messages.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'message' + (m.own ? ' own' : '');
+    div.innerHTML = `<div>${m.text}</div><div class="time">${m.time}</div>`;
+    box.appendChild(div);
+  });
+  box.scrollTop = box.scrollHeight;
+}
   box.innerHTML = '';
   chat.messages.forEach(m => {
     const div = document.createElement('div');
@@ -736,15 +836,53 @@ function sendMessage() {
   const chat = state.chats.find(c => c.chatId === state.activeChatId);
   const time = new Date().toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
   
-  // НЕ добавляем оптимистично - ждем подтверждения от сервера через сокет
+  // Генерируем временный ID
+  const tempId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  
+  // Оптимистично добавляем сообщение
+  chat.messages.push({ 
+    text, 
+    own: true, 
+    time,
+    _id: tempId,
+    createdAt: new Date().toISOString(),
+    senderId: state.currentUser.id
+  });
+  renderMessages();
+  
   input.value = '';
 
-  if (socket) {
+  if (socket && socket.connected) {
     socket.emit('sendMessage', { 
       chatId: chat.chatId, 
       text, 
       senderId: state.currentUser.id,
-      partnerId: chat.partnerId
+      partnerId: chat.partnerId,
+      tempId
+    });
+  } else {
+    // Fallback через REST API
+    fetch(`${API_URL}/api/messages`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}` 
+      },
+      body: JSON.stringify({ 
+        chatId: chat.chatId, 
+        text, 
+        partnerId: chat.partnerId 
+      })
+    }).then(res => res.json()).then(data => {
+      const msgIndex = chat.messages.findIndex(m => m._id === tempId);
+      if (msgIndex !== -1) {
+        chat.messages[msgIndex]._id = data._id;
+        renderMessages();
+      }
+    }).catch(err => {
+      chat.messages = chat.messages.filter(m => m._id !== tempId);
+      renderMessages();
+      alert('Не удалось отправить сообщение');
     });
   }
 }
