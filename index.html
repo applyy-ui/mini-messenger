@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <title>MiniMessenger</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Подключаем библиотеку Socket.io -->
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   /* ===== Базовые стили ===== */
@@ -12,6 +11,47 @@
   body { background: #e7ebf0; height: 100vh; display: flex; align-items: center; justify-content: center; }
   button { cursor: pointer; border: none; background: none; font: inherit; }
   input { font: inherit; outline: none; }
+
+  /* ===== ТЁМНАЯ ТЕМА ===== */
+  body.dark { background: #0f1419; }
+  body.dark .auth-screen { background: #15202b; color: #fff; box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+  body.dark .auth-screen input { background: #22303c; border-color: #38444d; color: #fff; }
+  body.dark .auth-screen input:focus { border-color: #1d9bf0; }
+  body.dark .auth-screen button.primary { background: #1d9bf0; }
+  body.dark .auth-screen button.primary:hover { background: #1a8cd8; }
+  body.dark .app { background: #15202b; }
+  body.dark .sidebar { background: #15202b; border-right-color: #38444d; }
+  body.dark .sidebar-header { border-bottom-color: #38444d; }
+  body.dark .icon-btn { color: #8899a6; }
+  body.dark .icon-btn:hover { background: #1e2732; }
+  body.dark .chat-list { background: #15202b; }
+  body.dark .chat-item:hover { background: #1e2732; }
+  body.dark .chat-item.active { background: #1d9bf0; color: #fff; }
+  body.dark .chat-item.active .chat-preview,
+  body.dark .chat-item.active .chat-time { color: rgba(255,255,255,.85); }
+  body.dark .avatar { background: #1d9bf0; color: #fff; }
+  body.dark .chat-name { color: #fff; }
+  body.dark .chat-time { color: #8899a6; }
+  body.dark .chat-preview { color: #8899a6; }
+  body.dark .chat-area { background: #0f1419; }
+  body.dark .chat-header { background: #15202b; border-bottom-color: #38444d; }
+  body.dark .chat-header .name { color: #fff; }
+  body.dark .chat-header .status { color: #8899a6; }
+  body.dark .message { background: #22303c; color: #fff; }
+  body.dark .message.own { background: #1d9bf0; color: #fff; }
+  body.dark .message .time { color: #8899a6; }
+  body.dark .input-area { background: #15202b; }
+  body.dark .input-area input { background: #22303c; border-color: #38444d; color: #fff; }
+  body.dark .input-area input:focus { background: #2a3441; border-color: #1d9bf0; }
+  body.dark .send-btn { background: #1d9bf0; color: #fff; }
+  body.dark .send-btn:hover { background: #1a8cd8; }
+  body.dark .modal { background: #15202b; color: #fff; }
+  body.dark .modal input { background: #22303c; border-color: #38444d; color: #fff; }
+  body.dark .modal .btn-primary { background: #1d9bf0; color: #fff; }
+  body.dark .modal .btn-secondary { background: #22303c; color: #fff; }
+  body.dark .modal .btn-secondary:hover { background: #2a3441; }
+  body.dark .empty-chat { color: #8899a6; }
+  body.dark .theme-toggle { color: #fff; }
 
   /* ===== Экран авторизации ===== */
   .auth-screen {
@@ -171,6 +211,16 @@
   .modal .btn-secondary:hover { background: #e4e6eb; }
   .modal .btn-danger { background: #fff; color: #e53935; border: 1px solid #e53935; }
   .modal .btn-danger:hover { background: #fdecea; }
+  
+  /* Поиск друзей */
+  .search-friends {
+    padding: 12px 16px; border-bottom: 1px solid #e7ebf0;
+  }
+  .search-friends input {
+    width: 100%; padding: 8px 12px; border: 1px solid #e7ebf0;
+    border-radius: 8px; background: #f4f6f8;
+  }
+  .search-friends input:focus { border-color: #2AABEE; background: #fff; }
 </style>
 </head>
 <body>
@@ -180,8 +230,8 @@
   <h1 id="authTitle">Вход</h1>
   <div class="auth-error" id="authError"></div>
 
-  <input type="text" id="authName" placeholder="Имя" style="display:none">
-  <input type="email" id="authEmail" placeholder="Email">
+  <input type="text" id="authUsername" placeholder="Логин">
+  <input type="text" id="authName" placeholder="Ваше имя" style="display:none">
   <input type="password" id="authPass" placeholder="Пароль">
 
   <button class="primary" id="authBtn">Войти</button>
@@ -209,6 +259,12 @@
         </svg>
       </button>
     </div>
+    
+    <!-- Поиск друзей -->
+    <div class="search-friends">
+      <input type="text" id="searchFriendInput" placeholder=" Найти друга по логину...">
+    </div>
+    
     <div class="chat-list" id="chatList"></div>
   </aside>
 
@@ -222,7 +278,10 @@
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <h2>Настройки</h2>
-    <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsEmail"></b></p>
+    <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsUsername"></b></p>
+    <div class="btn-row" style="margin-bottom:12px;">
+      <button class="btn-secondary" id="themeToggle"> Тёмная тема</button>
+    </div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeModal('settingsModal')">Закрыть</button>
       <button class="btn-danger" id="logoutBtn">Выйти</button>
@@ -254,17 +313,25 @@ let state = {
   mode: 'login',
   currentUser: null,
   activeChatId: null,
-  chats: [
-    { id: 1, name: 'Анна',   avatar: 'А', messages: [] },
-    { id: 2, name: 'Команда',avatar: 'К', messages: [] },
-    { id: 3, name: 'Максим', avatar: 'М', messages: [] },
-  ]
+  chats: [],
+  darkTheme: localStorage.getItem('darkTheme') === 'true'
 };
 
 /* ===== Утилиты ===== */
 const $ = id => document.getElementById(id);
 const openModal  = id => $(id).classList.add('active');
 const closeModal = id => $(id).classList.remove('active');
+
+/* ===== Применение темы ===== */
+function applyTheme() {
+  if (state.darkTheme) {
+    document.body.classList.add('dark');
+    $('themeToggle').textContent = '☀️ Светлая тема';
+  } else {
+    document.body.classList.remove('dark');
+    $('themeToggle').textContent = ' Тёмная тема';
+  }
+}
 
 /* ===== Socket.io ===== */
 function initSocket() {
@@ -282,18 +349,9 @@ function initSocket() {
       
       const chat = state.chats.find(c => String(c.id) === String(message.chatId));
       if (chat) {
-        // Проверяем, нет ли уже такого сообщения (по времени создания)
-        const exists = chat.messages.some(m => 
-          m.time === time && m.text === message.text
-        );
-        
+        const exists = chat.messages.some(m => m.time === time && m.text === message.text);
         if (!exists) {
-          chat.messages.push({ 
-            text: message.text, 
-            own: isOwn, 
-            time,
-            _id: message._id // Сохраняем ID сообщения
-          });
+          chat.messages.push({ text: message.text, own: isOwn, time, _id: message._id });
           renderMessages();
           renderChatList();
         }
@@ -301,12 +359,13 @@ function initSocket() {
     }
   });
 }
+
 /* ===== Авторизация ===== */
 function switchAuthMode() {
   state.mode = state.mode === 'login' ? 'register' : 'login';
   $('authTitle').textContent = state.mode === 'login' ? 'Вход' : 'Регистрация';
   $('authName').style.display = state.mode === 'register' ? 'block' : 'none';
-  $('authBtn').textContent = state.mode === 'login' ? 'Войти' : 'Создать аккаунт';
+  $('authBtn').textContent = state.mode === 'login' ? 'Войти' : 'Отправить заявку';
   $('switchText').textContent = state.mode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?';
   $('switchLink').textContent = state.mode === 'login' ? 'Зарегистрироваться' : 'Войти';
   $('authError').textContent = '';
@@ -314,12 +373,12 @@ function switchAuthMode() {
 $('switchLink').onclick = switchAuthMode;
 
 $('authBtn').onclick = async () => {
-  const email = $('authEmail').value.trim();
+  const username = $('authUsername').value.trim();
   const pass  = $('authPass').value;
   const name  = $('authName').value.trim();
   const err = $('authError');
   
-  if (!email || !pass) return err.textContent = 'Заполните все поля';
+  if (!username || !pass) return err.textContent = 'Заполните все поля';
   if (state.mode === 'register' && !name) return err.textContent = 'Введите имя';
 
   err.textContent = 'Загрузка...';
@@ -329,22 +388,22 @@ $('authBtn').onclick = async () => {
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name, password: pass })
+        body: JSON.stringify({ username, name, password: pass })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
       
       err.textContent = '';
-      alert('✅ Письмо отправлено! Подтвердите почту и войдите.');
+      alert('✅ Заявка отправлена! Администратор подтвердит ваш аккаунт в ближайшее время.');
       switchAuthMode();
     } else {
       const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: pass })
+        body: JSON.stringify({ username, password: pass })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Неверный email или пароль');
+      if (!res.ok) throw new Error(data.error || 'Неверный логин или пароль');
 
       localStorage.setItem('token', data.token);
       state.currentUser = data.user;
@@ -364,7 +423,7 @@ $('logoutBtn').onclick = () => {
   closeModal('settingsModal');
   $('app').classList.remove('active');
   $('authScreen').style.display = 'block';
-  $('authEmail').value = '';
+  $('authUsername').value = '';
   $('authPass').value = '';
 };
 
@@ -407,8 +466,48 @@ $('saveProfileBtn').onclick = () => {
 
 /* ===== Настройки ===== */
 $('settingsBtn').onclick = () => {
-  $('settingsEmail').textContent = state.currentUser.email;
+  $('settingsUsername').textContent = state.currentUser.username;
   openModal('settingsModal');
+};
+
+$('themeToggle').onclick = () => {
+  state.darkTheme = !state.darkTheme;
+  localStorage.setItem('darkTheme', state.darkTheme);
+  applyTheme();
+};
+
+/* ===== Поиск друзей ===== */
+$('searchFriendInput').onkeydown = async (e) => {
+  if (e.key !== 'Enter') return;
+  const username = e.target.value.trim();
+  if (!username) return;
+
+  try {
+    const token = localStorage.getItem('token');
+    // Ищем пользователя (можно создать отдельный роут, пока используем заглушку)
+    const chat = state.chats.find(c => c.username === username.toLowerCase());
+    if (chat) {
+      state.activeChatId = chat.id;
+      renderChatList();
+      renderChat();
+    } else {
+      // Создаём новый чат с этим пользователем
+      const newChat = {
+        id: Date.now(),
+        name: username,
+        username: username.toLowerCase(),
+        avatar: username[0].toUpperCase(),
+        messages: []
+      };
+      state.chats.push(newChat);
+      state.activeChatId = newChat.id;
+      renderChatList();
+      renderChat();
+    }
+    e.target.value = '';
+  } catch (err) {
+    console.error('Ошибка поиска:', err);
+  }
 };
 
 /* ===== Рендер чатов ===== */
@@ -433,7 +532,7 @@ function renderChatList() {
   });
 }
 
-/* ===== Рендер переписки (с загрузкой из БД) ===== */
+/* ===== Рендер переписки ===== */
 async function renderChat() {
   const area = $('chatArea');
   const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
@@ -475,7 +574,8 @@ async function renderChat() {
       chat.messages = messages.map(m => ({
         text: m.text,
         own: m.senderId._id === state.currentUser.id,
-        time: new Date(m.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'})
+        time: new Date(m.createdAt).toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'}),
+        _id: m._id
       }));
       renderMessages();
     }
@@ -483,7 +583,6 @@ async function renderChat() {
     console.error('Ошибка загрузки сообщений:', e);
   }
 
-  // Входим в комнату чата через Socket
   if (socket) socket.emit('joinChat', String(chat.id));
 
   const input = $('msgInput');
@@ -514,13 +613,11 @@ function sendMessage() {
   const chat = state.chats.find(c => String(c.id) === String(state.activeChatId));
   const time = new Date().toLocaleTimeString('ru', {hour:'2-digit', minute:'2-digit'});
   
-  // Оптимистичное обновление UI
   chat.messages.push({ text, own: true, time });
   input.value = '';
   renderMessages();
   renderChatList();
 
-  // Отправка на сервер через Socket.io
   if (socket) {
     socket.emit('sendMessage', {
       chatId: String(chat.id),
@@ -530,11 +627,12 @@ function sendMessage() {
   }
 }
 
-/* ===== Запуск и Авто-вход ===== */
+/* ===== Запуск ===== */
 function showApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
-  initSocket(); // Инициализируем сокет при входе
+  applyTheme();
+  initSocket();
   renderChatList();
 }
 

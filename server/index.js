@@ -18,6 +18,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/profile', require('./middleware/auth'), require('./routes/profile'));
+app.use('/api/admin', require('./routes/admin'));
 
 const server = http.createServer(app);
 
