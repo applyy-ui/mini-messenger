@@ -26,15 +26,19 @@ router.get('/', async (req, res) => {
     // 4. Возвращаем безопасные данные пользователя
     res.json({ 
       user: { 
-        id: user._id, 
+        id: user._id,
+        username: user.username || user.email, // Если username нет, используем email
         name: user.name, 
-        email: user.email, 
-        avatar: user.avatar 
+        email: user.email,
+        avatar: user.avatar || '',
+        isAdmin: user.isAdmin || false, // <-- ГЛАВНОЕ ДОБАВЛЕНИЕ
+        isApproved: user.isApproved !== undefined ? user.isApproved : true
       } 
     });
   } catch (error) {
+    console.error('Ошибка профиля:', error);
     res.status(401).json({ error: 'Неверный или просроченный токен' });
   }
 });
 
-module.exports = router;
+module.exports = router;    

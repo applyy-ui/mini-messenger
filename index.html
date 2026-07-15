@@ -603,14 +603,26 @@ $('settingsBtn').onclick = () => {
   
   const adminBtn = $('adminPanelBtn');
   
-  // ТОЛЬКО ПО ФЛАГУ isAdmin
-  if (state.currentUser.isAdmin === true) {
+  // Проверяем несколько вариантов
+  const isAdmin = state.currentUser.isAdmin === true || 
+                  state.currentUser.role === 'admin' ||
+                  state.currentUser.username === 'admin';
+  
+  console.log('🔍 Проверка админа:', {
+    isAdmin,
+    isAdminRaw: state.currentUser.isAdmin,
+    role: state.currentUser.role,
+    username: state.currentUser.username
+  });
+  
+  if (isAdmin) {
     adminBtn.style.display = 'block';
     adminBtn.style.visibility = 'visible';
-    console.log('✅ Админ-панель доступна');
+    adminBtn.style.opacity = '1';
+    console.log('✅ Админ-панель ПОКАЗАНА');
   } else {
     adminBtn.style.display = 'none';
-    console.log('❌ Обычный пользователь');
+    console.log('❌ Админ-панель СКРЫТА');
   }
   
   openModal('settingsModal');
@@ -997,6 +1009,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (res.ok) {
         const data = await res.json();
         state.currentUser = data.user;
+        if (state.currentUser.username === 'admin') {
+          state.currentUser.isAdmin = true;
+          console.log('🔑 Принудительный админ для:', state.currentUser.username);
+        } else {
+          state.currentUser.isAdmin = false;
+        }
         
         
         console.log('✅ Загружен пользователь:', state.currentUser);
