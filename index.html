@@ -955,6 +955,21 @@ async function showApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
   applyTheme();
+  // Обновляем данные пользователя с бэкенда
+  try {
+    const res = await fetch(`${API_URL}/api/profile`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      state.currentUser = data.user; // Обновляем полностью
+      console.log('✅ Данные обновлены:', state.currentUser);
+    }
+  } catch (e) {
+    console.error('Ошибка обновления профиля:', e);
+  }
+  // ============================
+
   initSocket();
   
   // ПРОВЕРКА: существует ли уже Избранное
