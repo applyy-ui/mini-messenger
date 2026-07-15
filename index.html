@@ -602,12 +602,15 @@ $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
   
   const adminBtn = $('adminPanelBtn');
-  // Принудительно убираем !important если есть
-  adminBtn.style.setProperty('display', 'none', 'important');
   
-  if (state.currentUser.isAdmin) {
-    adminBtn.style.setProperty('display', 'block', 'important');
+  // ТОЛЬКО ПО ФЛАГУ isAdmin
+  if (state.currentUser.isAdmin === true) {
+    adminBtn.style.display = 'block';
     adminBtn.style.visibility = 'visible';
+    console.log('✅ Админ-панель доступна');
+  } else {
+    adminBtn.style.display = 'none';
+    console.log('❌ Обычный пользователь');
   }
   
   openModal('settingsModal');
@@ -955,21 +958,6 @@ async function showApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
   applyTheme();
-  // Обновляем данные пользователя с бэкенда
-  try {
-    const res = await fetch(`${API_URL}/api/profile`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      state.currentUser = data.user; // Обновляем полностью
-      console.log('✅ Данные обновлены:', state.currentUser);
-    }
-  } catch (e) {
-    console.error('Ошибка обновления профиля:', e);
-  }
-  // ============================
-
   initSocket();
   
   // ПРОВЕРКА: существует ли уже Избранное
@@ -1010,13 +998,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         const data = await res.json();
         state.currentUser = data.user;
         
-        // === ВРЕМЕННО: принудительный админ для теста ===
-        // Если логин admin - делаем админом
-        if (state.currentUser.username === 'admin') {
-          state.currentUser.isAdmin = true;
-          console.log('🔑 Админ режим активирован для:', state.currentUser.username);
-        }
-        // =============================================
         
         console.log('✅ Загружен пользователь:', state.currentUser);
         showApp();
