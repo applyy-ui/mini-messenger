@@ -601,10 +601,13 @@ $('saveProfileBtn').onclick = () => {
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
   
-  // ПОКАЗЫВАЕМ кнопку админки через класс, а не display
+  // Принудительно показываем кнопку админки
   const adminBtn = $('adminPanelBtn');
-  if (state.currentUser.isAdmin) {
-    adminBtn.style.display = 'block';  // Явно показываем
+  console.log('Админ?', state.currentUser.isAdmin); // Проверка в консоли
+  
+  if (state.currentUser.isAdmin === true) {
+    adminBtn.style.display = 'block';
+    adminBtn.style.visibility = 'visible'; // Дополнительная страховка
   } else {
     adminBtn.style.display = 'none';
   }
