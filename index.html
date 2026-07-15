@@ -470,36 +470,22 @@ socket.on('userStatus', ({ userId, status }) => {
   if (statusEl && state.activeChatId) {
     const chat = state.chats.find(c => c.chatId === state.activeChatId);
     if (chat && chat.partnerId === userId) {
-      statusEl.textContent = status === 'online' ? '🟢 в сети' : '⚪ был(а) недавно';
+      statusEl.textContent = status === 'online' ? 'В сети' : 'Был(а) недавно';
     }
   }
 });
 
-// --- ИНДИКАТОР ПЕЧАТАНИЯ ---
-socket.on('userTyping', ({ chatId, username }) => {
-  // Проверяем, что это активный чат
+  // --- ИНДИКАТОР ПЕЧАТАНИЯ (БЕЗ ИМЕНИ) ---
+socket.on('userTyping', ({ chatId }) => {
   if (state.activeChatId === chatId) {
     const statusEl = document.querySelector('.chat-header .status');
     if (statusEl) {
-      statusEl.textContent = `✏️ ${username} печатает...`;
+      statusEl.textContent = 'Печатает...';
       clearTimeout(window.typingTimeout);
       window.typingTimeout = setTimeout(() => {
-        // Возвращаем статус "в сети" через 2 секунды
         const chat = state.chats.find(c => c.chatId === state.activeChatId);
-        if (chat) {
-          // Проверяем, онлайн ли собеседник
-          fetch(`${API_URL}/api/users/status/${chat.partnerId}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (statusEl) {
-              statusEl.textContent = data.isOnline ? '🟢 в сети' : '⚪ был(а) недавно';
-            }
-          })
-          .catch(() => {
-            if (statusEl) statusEl.textContent = 'в сети';
-          });
+        if (chat && statusEl) {
+          statusEl.textContent = 'В сети';
         }
       }, 2000);
     }
@@ -614,12 +600,15 @@ $('saveProfileBtn').onclick = () => {
 
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
-  // Показываем кнопку админки только если пользователь админ
+  
+  // ПОКАЗЫВАЕМ кнопку админки через класс, а не display
+  const adminBtn = $('adminPanelBtn');
   if (state.currentUser.isAdmin) {
-    $('adminPanelBtn').style.display = 'block';
+    adminBtn.style.display = 'block';  // Явно показываем
   } else {
-    $('adminPanelBtn').style.display = 'none';
+    adminBtn.style.display = 'none';
   }
+  
   openModal('settingsModal');
 };
 
@@ -863,10 +852,10 @@ async function renderChat() {
   input.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
     // Обработка ввода (для печатания, опционально)
   input.oninput = () => {
-    if (input.value.trim()) {
-      socket.emit('typing', { chatId: chat.chatId, username: state.currentUser.username });
-    }
-  };
+  if (input.value.trim()) {
+    socket.emit('typing', { chatId: chat.chatId });
+  }
+};  
   $('sendBtn').onclick = sendMessage;
 }
 
@@ -967,33 +956,30 @@ async function showApp() {
   applyTheme();
   initSocket();
   
+  // ПРОВЕРКА: существует ли уже Избранное
   const favChatId = getChatId(state.currentUser.id, state.currentUser.id);
-  const favChat = {
-  chatId: favChatId,
-  name: 'Избранное',
-  username: state.currentUser.username || 'user',
-  avatar: state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?'),
-  messages: [],
-  partnerId: state.currentUser.id,
-  lastMessage: '',
-  lastTime: '',
-  isFavorite: true
-  };
+  const existingFav = state.chats.find(c => c.isFavorite === true);
   
-  await loadChats();
-  // Убеждаемся, что favChat не дублируется
-const existingFav = state.chats.find(c => c.isFavorite);
-if (existingFav) {
-  // Если уже есть - обновляем его данные
-  existingFav.name = 'Избранное';
-  existingFav.avatar = state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?');
-} else {
-  state.chats.unshift(favChat);
-}
-  if (!state.chats.find(c => c.isFavorite)) {
+  if (!existingFav) {
+    // Создаём только если нет
+    const favChat = {
+      chatId: favChatId,
+      name: 'Избранное',
+      username: state.currentUser.username || 'user',
+      avatar: state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?'),
+      messages: [],
+      partnerId: state.currentUser.id,
+      lastMessage: '',
+      lastTime: '',
+      isFavorite: true
+    };
     state.chats.unshift(favChat);
+  } else {
+    // Если есть - обновляем аватарку
+    existingFav.avatar = state.currentUser.avatar || (state.currentUser.username ? state.currentUser.username[0].toUpperCase() : '?');
   }
   
+  await loadChats();
   renderChatList();
 }
 
