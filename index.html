@@ -1008,14 +1008,20 @@ window.addEventListener('DOMContentLoaded', async () => {
       });
       if (res.ok) {
         const data = await res.json();
-        state.currentUser = data.user;
-        if (state.currentUser.username === 'admin') {
-          state.currentUser.isAdmin = true;
-          console.log('🔑 Принудительный админ для:', state.currentUser.username);
-        } else {
-          state.currentUser.isAdmin = false;
-        }
         
+        // === ГЛАВНОЕ ИЗМЕНЕНИЕ ===
+        // ЯВНО присваиваем ВСЕ поля из ответа
+        state.currentUser = {
+          id: data.user.id,
+          username: data.user.username,
+          name: data.user.name,
+          avatar: data.user.avatar || '',
+          isAdmin: data.user.isAdmin === true, // Приводим к boolean
+          isApproved: data.user.isApproved === true,
+          isOnline: data.user.isOnline || false,
+          lastSeen: data.user.lastSeen || Date.now()
+        };
+        // ===========================
         
         console.log('✅ Загружен пользователь:', state.currentUser);
         showApp();
