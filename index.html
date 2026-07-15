@@ -1003,14 +1003,30 @@ window.addEventListener('DOMContentLoaded', async () => {
   const token = localStorage.getItem('token');
   if (token) {
     try {
-      const res = await fetch(`${API_URL}/api/profile`, { headers: { 'Authorization': `Bearer ${token}` } });
+      const res = await fetch(`${API_URL}/api/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (res.ok) {
-        state.currentUser = (await res.json()).user;
+        const data = await res.json();
+        state.currentUser = data.user;
+        
+        // === ВРЕМЕННО: принудительный админ для теста ===
+        // Если логин admin - делаем админом
+        if (state.currentUser.username === 'admin') {
+          state.currentUser.isAdmin = true;
+          console.log('🔑 Админ режим активирован для:', state.currentUser.username);
+        }
+        // =============================================
+        
+        console.log('✅ Загружен пользователь:', state.currentUser);
         showApp();
       } else {
         localStorage.removeItem('token');
       }
-    } catch(e) { localStorage.removeItem('token'); }
+    } catch(e) {
+      console.error('Ошибка загрузки профиля:', e);
+      localStorage.removeItem('token');
+    }
   }
 });
 
