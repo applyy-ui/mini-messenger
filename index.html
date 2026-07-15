@@ -288,9 +288,9 @@
     <h2>Настройки</h2>
     <p style="color:#666; margin-bottom:16px;">Текущий аккаунт: <b id="settingsUsername"></b></p>
     <div class="btn-row" style="margin-bottom:12px;">
-      <button class="btn-secondary" id="themeToggle">Темная тема</button>
-      <button class="btn-primary" id="adminPanelBtn" style="display:none;">Админ-панель</button>
-    </div>
+  <button class="btn-secondary" id="themeToggle">Темная тема</button>
+  <button class="btn-primary" id="adminPanelBtn" style="display:none !important;">Админ-панель</button>
+</div>
     <div class="btn-row">
       <button class="btn-secondary" onclick="closeModal('settingsModal')">Закрыть</button>
       <button class="btn-danger" id="logoutBtn">Выйти</button>
@@ -601,15 +601,13 @@ $('saveProfileBtn').onclick = () => {
 $('settingsBtn').onclick = () => {
   $('settingsUsername').textContent = state.currentUser.username;
   
-  // Принудительно показываем кнопку админки
   const adminBtn = $('adminPanelBtn');
-  console.log('Админ?', state.currentUser.isAdmin); // Проверка в консоли
+  // Принудительно убираем !important если есть
+  adminBtn.style.setProperty('display', 'none', 'important');
   
-  if (state.currentUser.isAdmin === true) {
-    adminBtn.style.display = 'block';
-    adminBtn.style.visibility = 'visible'; // Дополнительная страховка
-  } else {
-    adminBtn.style.display = 'none';
+  if (state.currentUser.isAdmin) {
+    adminBtn.style.setProperty('display', 'block', 'important');
+    adminBtn.style.visibility = 'visible';
   }
   
   openModal('settingsModal');
